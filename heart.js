@@ -1,6 +1,7 @@
 var five = require("johnny-five"),
   keypress = require("keypress"),
   tinycolor = require("tinycolor2");
+var exec = require("child_process").exec;
 
 Heart = function() {
   led_opts = {
@@ -42,6 +43,7 @@ Heart.prototype.beat = function() {
   }.bind(this);
 
   this.colorFade(this.high_color, this.beat_time/2, fadeOut);
+  exec("play data/heartbeat.wav"); // ugly?
 }
 
 function ease_step(step) {

@@ -98,17 +98,30 @@ Heart.prototype.colorFade = function(target_color, time, callback) {
 
 
 five.Board().on("ready", function() {
-
-  // Initialize the RGB LED
   var heart = new Heart();
 
-
-  // Add led to REPL (optional)
   this.repl.inject({
     heart: heart
   });
 
-  heart.beat();
+
+  var button = new five.Button({pin: 2, holdtime:1000});
+  button.on("down", function() {
+    heart.beat();
+  });
+
+  var interval = null;
+  button.on("hold", function () {
+    heart.beat();
+    interval = setInterval(heart.beat.bind(heart), 1000);
+  });
+
+  button.on("up", function () {
+    if (interval) {
+      clearInterval(interval);
+      interval = null;
+    }
+  });
 
 });
 

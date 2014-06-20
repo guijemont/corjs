@@ -18,6 +18,8 @@ Heart = function() {
 
   this.led = new five.Led.RGB(led_opts);
   this.setHue(0);
+
+  this.child = null;
 }
 
 // 0 - 360
@@ -43,7 +45,15 @@ Heart.prototype.beat = function() {
   }.bind(this);
 
   this.colorFade(this.high_color, this.beat_time/2, fadeOut);
-  exec("play data/heartbeat.wav"); // ugly?
+
+  if (this.child) {
+    this.child.kill();
+    this.child = null;
+  }
+  this.child = exec("play -q data/heartbeat.wav", sound_finish); // ugly?
+  var sound_finish = function() {
+    this.child = null;
+  }.bind(this);
 }
 
 function ease_step(step) {

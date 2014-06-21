@@ -7,7 +7,7 @@ var exec = require("child_process").exec;
  Inputs we want to handle:
  X "panic" button -> faster beat
  X "hue" button -> hue selection mode
- - heartbeat sensor (as button) -> deactivate autobeat, use sensor beat
+ X heartbeat sensor (as button) -> deactivate autobeat, use sensor beat
  - tap piezos -> same as heartbeat sensor, but with different sound file
 
 */
@@ -27,6 +27,7 @@ Heart = function() {
   this.default_beat_period = 1000; // ms
   this.panic_beat_period = 500;
   this.beat_period = this.default_beat_period;
+  this.manual_beat_timeout = 5000; // ms
 
   this.hue_period = 50;
   this.hue_delta = 3;
@@ -37,9 +38,16 @@ Heart = function() {
   this.child = null;
   this.beat_source = null;
   this.hue_selection_source = null;
+  this.manual_timeout_source = null;
 
-  this.startBeat();
+  this.mode = null;
+  this.setMode(Heart.AUTOBEAT);
 }
+
+// modes
+Heart.AUTOBEAT = 1;
+Heart.HUESELECT = 2;
+Heart.MANUALBEAT = 3;
 
 // 0 - 360
 Heart.prototype.setHue = function(hue) {
@@ -71,6 +79,8 @@ Heart.prototype.startHueSelection = function() {
 }
 
 Heart.prototype.stopHueSelection = function () {
+  if (!this.hue_selection_source)
+    return;
   clearInterval(this.hue_selection_source);
   this.hue_selection_source = null;
   this.colorFade(this.low_color, 500, function() {
@@ -135,6 +145,36 @@ Heart.prototype.colorFade = function(target_color, time, callback) {
   });
 }
 
+Heart.prototype.setMode = function(mode) {
+  switch(mode) {
+    case Heart.AUTOBEAT:
+      console.log("auto beat");
+      this.stopHueSelection();
+      this.startBeat();
+      break;
+    case Heart.HUESELECT:
+      console.log("hue selection")
+      this.stopBeat();
+      this.startHueSelection();
+      break;
+    case Heart.MANUALBEAT:
+      console.log("manual beat");
+      this.stopHueSelection();
+      this.stopBeat();
+      break;
+    default:
+      console.log("Warning! unknown mode: " + mode);
+      break;
+  }
+
+  if (mode != Heart.MANUALBEAT && this.manual_timeout_source) {
+    clearTimeout(this.manual_timeout_source);
+    this.manual_timeout_source = null;
+  }
+
+  this.mode = mode;
+}
+
 Heart.prototype.startBeat = function() {
   if (this.beat_source)
     return; // already beatin
@@ -150,6 +190,7 @@ Heart.prototype.startBeat = function() {
 
 Heart.prototype.stopBeat = function() {
   if (this.beat_source) {
+
     clearTimeout(this.beat_source);
     this.beat_source = null;
   }
@@ -179,10 +220,34 @@ Panic = function(heart, button_pin, led_pin) {
 Hue = function(heart, pin) {
   this.button = five.Button(pin);
   this.button.on("down", function() {
-    heart.startHueSelection();
+    heart.setMode(Heart.HUESELECT);
   }.bind(this));
   this.button.on("up", function() {
-    heart.stopHueSelection();
+    heart.setMode(Heart.AUTOBEAT);
+  }.bind(this));
+}
+
+ManualBeater = function(heart, pin, inverted) {
+  this.button = five.Button(pin);
+  var signal = inverted ? "up" : "down";
+  this.button.on(signal, function() {
+    if (heart.mode === Heart.HUESELECT)
+      return;
+    var reset = function() {
+      console.log("manual beat timeout!");
+      heart.setMode(Heart.AUTOBEAT);
+    }.bind(this);
+
+    if (heart.mode !== Heart.MANUALBEAT) {
+      heart.setMode(Heart.MANUALBEAT);
+    }
+    if (heart.manual_timeout_source)
+      clearTimeout(heart.manual_timeout_source);
+
+    console.log("timeout in " + heart.manual_beat_timeout);
+    heart.manual_timeout_source = setTimeout(reset,
+                                            heart.manual_beat_timeout);
+    heart.beat();
   }.bind(this));
 }
 
@@ -190,6 +255,8 @@ Controller = function(heart) {
   this.heart = heart;
 
   this.panic = Panic(heart, 2, 13);
+
+  //this.heart_beat_sensor = ManualBeater(heart, 2, true);
 
   this.hue = Hue(heart, 4);
 }

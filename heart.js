@@ -6,7 +6,7 @@ var exec = require("child_process").exec;
 /*
  Inputs we want to handle:
  X "panic" button -> faster beat
- - "hue" button -> hue selection mode
+ X "hue" button -> hue selection mode
  - heartbeat sensor (as button) -> deactivate autobeat, use sensor beat
  - tap piezos -> same as heartbeat sensor, but with different sound file
 
@@ -23,16 +23,20 @@ Heart = function() {
   }
   this.value_min=0.2;
   this.value_max=1.0;
-  this.beat_time = 400; // ms
+  this.beat_time = 500; // ms
   this.default_beat_period = 1000; // ms
   this.panic_beat_period = 500;
   this.beat_period = this.default_beat_period;
+
+  this.hue_period = 50;
+  this.hue_delta = 3;
 
   this.led = new five.Led.RGB(led_opts);
   this.setHue(0);
 
   this.child = null;
   this.beat_source = null;
+  this.hue_selection_source = null;
 
   this.startBeat();
 }
@@ -51,7 +55,27 @@ Heart.prototype.setHue = function(hue) {
   var high_rgb = high_color_tiny.toRgb();
   this.high_color = [high_rgb.r, high_rgb.g, high_rgb.b];
 
-  this.led.color(this.low_color);
+  this.led.color(this.high_color);
+}
+
+Heart.prototype.startHueSelection = function() {
+  this.stopBeat();
+
+  var updateHue = function(){
+    this.setHue((this.hue + this.hue_delta) % 360);
+  }.bind(this);
+
+  this.colorFade(this.high_color, 500, function() {
+      this.hue_selection_source = setInterval(updateHue, this.hue_period);
+    }.bind(this));
+}
+
+Heart.prototype.stopHueSelection = function () {
+  clearInterval(this.hue_selection_source);
+  this.hue_selection_source = null;
+  this.colorFade(this.low_color, 500, function() {
+      this.startBeat();
+    }.bind(this));
 }
 
 Heart.prototype.beat = function() {
@@ -155,10 +179,10 @@ Panic = function(heart, button_pin, led_pin) {
 Hue = function(heart, pin) {
   this.button = five.Button(pin);
   this.button.on("down", function() {
-    console.log("hue selection mode");
+    heart.startHueSelection();
   }.bind(this));
   this.button.on("up", function() {
-    console.log("out of hue selection");
+    heart.stopHueSelection();
   }.bind(this));
 }
 

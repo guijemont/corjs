@@ -1,5 +1,5 @@
 var five = require("johnny-five"),
-  keypress = require("keypress"),
+ keypress = require("keypress"),
   tinycolor = require("tinycolor2");
 var exec = require("child_process").exec;
 
@@ -19,18 +19,18 @@ Heart = function() {
      green: 10,
      blue: 9
     },
-    isAnode: true
+    isAnode: false
   }
   this.value_min=0.2;
   this.value_max=1.0;
   this.beat_time = 500; // ms
-  this.default_beat_period = 1000; // ms
+  this.default_beat_period = 1400; // ms
   this.panic_beat_period = 500;
   this.beat_period = this.default_beat_period;
   this.manual_beat_timeout = 5000; // ms
 
-  this.hue_period = 50;
-  this.hue_delta = 3;
+  this.hue_period = 60;
+  this.hue_delta = 2;
 
   this.led = new five.Led.RGB(led_opts);
   this.setHue(0);
@@ -76,6 +76,11 @@ Heart.prototype.startHueSelection = function() {
   this.colorFade(this.high_color, 500, function() {
       this.hue_selection_source = setInterval(updateHue, this.hue_period);
     }.bind(this));
+
+  this.child = exec("play -q data/tadaa.wav", sound_finish); // ugly?
+  var sound_finish = function() {
+    this.child = null;
+  }.bind(this);
 }
 
 Heart.prototype.stopHueSelection = function () {
@@ -84,6 +89,8 @@ Heart.prototype.stopHueSelection = function () {
   clearInterval(this.hue_selection_source);
   this.hue_selection_source = null;
   this.colorFade(this.low_color, 500, function() {
+      this.child.kill('SIGKILL');
+      this.child = null;
       this.startBeat();
     }.bind(this));
 }
@@ -96,7 +103,7 @@ Heart.prototype.beat = function() {
   this.colorFade(this.high_color, this.beat_time/2, fadeOut);
 
   if (this.child) {
-    this.child.kill();
+    this.child.kill('SIGKILL');
     this.child = null;
   }
   this.child = exec("play -q data/heartbeat.wav", sound_finish); // ugly?

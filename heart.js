@@ -1,7 +1,9 @@
 var five = require("johnny-five"),
- keypress = require("keypress"),
-  tinycolor = require("tinycolor2");
+  keypress = require("keypress"),
+  tinycolor = require("tinycolor2"),
+  util = require("util");
 var exec = require("child_process").exec;
+var EventEmitter = require('events').EventEmitter;
 
 /*
  Inputs we want to handle:
@@ -225,11 +227,11 @@ Panic = function(heart, button_pin, led_pin) {
 }
 
 Hue = function(heart, pin) {
-  this.button = five.Button(pin);
-  this.button.on("down", function() {
+  this.sensor = new TouchSensor(pin);
+  this.sensor.on("down", function() {
     heart.setMode(Heart.HUESELECT);
   }.bind(this));
-  this.button.on("up", function() {
+  this.sensor.on("up", function() {
     heart.setMode(Heart.AUTOBEAT);
   }.bind(this));
 }
@@ -258,6 +260,33 @@ ManualBeater = function(heart, pin, inverted) {
   }.bind(this));
 }
 
+TouchSensor = function (pin) {
+    this.sensor = new five.Sensor({
+        pin: pin,
+        freq: 10,
+        range: [0, 1023],
+        threshold: 15
+    });
+
+    this.touched = false;
+    this.last_val = this.sensor.value;
+
+    this.sensor.scale([0, 1023]).on("data", function () {
+      var difference = this.sensor.value - this.last_val;
+      if (Math.abs(difference) > this.sensor.threshold) {
+        if (!this.touched && difference < 0) {
+          this.touched = true;
+          this.emit("down");
+        } else if (this.touched && difference > 0) {
+          this.touched = false;
+          this.emit("up");
+        }
+      }
+    this.last_val = this.sensor.value;
+    }.bind(this));
+}
+util.inherits(TouchSensor, EventEmitter);
+
 Controller = function(heart) {
   this.heart = heart;
 
@@ -265,7 +294,7 @@ Controller = function(heart) {
 
   //this.heart_beat_sensor = ManualBeater(heart, 2, true);
 
-  this.hue = Hue(heart, 4);
+  this.hue = Hue(heart, "A0");
 }
 
 five.Board().on("ready", function() {

@@ -97,21 +97,23 @@ Heart.prototype.stopHueSelection = function () {
     }.bind(this));
 }
 
-Heart.prototype.beat = function() {
+Heart.prototype.beat = function(silent) {
   var fadeOut = function() {
     this.colorFade(this.low_color, this.beat_time/2);
   }.bind(this);
 
   this.colorFade(this.high_color, this.beat_time/2, fadeOut);
 
-  if (this.child) {
+  if (!silent) {
+   if (this.child) {
     this.child.kill('SIGKILL');
     this.child = null;
-  }
-  this.child = exec("play -q data/heartbeat.wav", sound_finish); // ugly?
-  var sound_finish = function() {
+   }
+   this.child = exec("play -q data/heartbeat.wav", sound_finish); // ugly?
+   var sound_finish = function() {
     this.child = null;
-  }.bind(this);
+   }.bind(this);
+  }
 }
 
 function ease_step(step) {
@@ -254,10 +256,10 @@ ManualBeater = function(heart, beater) {
     if (this.heart.manual_timeout_source)
       clearTimeout(this.heart.manual_timeout_source);
 
-    console.log("timeout in " + this.heart.manual_beat_timeout);
     this.heart.manual_timeout_source = setTimeout(reset,
                                             this.heart.manual_beat_timeout);
     exec("play -q data/one_beat.wav");
+    this.heart.beat(true);
   }.bind(this));
 }
 

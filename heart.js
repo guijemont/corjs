@@ -236,27 +236,28 @@ Hue = function(heart, pin) {
   }.bind(this));
 }
 
-ManualBeater = function(heart, pin, inverted) {
-  this.button = five.Button(pin);
-  var signal = inverted ? "up" : "down";
-  this.button.on(signal, function() {
-    if (heart.mode === Heart.HUESELECT)
+// beater is something that sends a "beat" signal
+ManualBeater = function(heart, beater) {
+  this.heart = heart;
+  this.beater = beater;
+  this.beater.on("beat", function() {
+    if (this.heart.mode === Heart.HUESELECT)
       return;
     var reset = function() {
       console.log("manual beat timeout!");
-      heart.setMode(Heart.AUTOBEAT);
+      this.heart.setMode(Heart.AUTOBEAT);
     }.bind(this);
 
-    if (heart.mode !== Heart.MANUALBEAT) {
-      heart.setMode(Heart.MANUALBEAT);
+    if (this.heart.mode !== Heart.MANUALBEAT) {
+      this.heart.setMode(Heart.MANUALBEAT);
     }
-    if (heart.manual_timeout_source)
-      clearTimeout(heart.manual_timeout_source);
+    if (this.heart.manual_timeout_source)
+      clearTimeout(this.heart.manual_timeout_source);
 
-    console.log("timeout in " + heart.manual_beat_timeout);
-    heart.manual_timeout_source = setTimeout(reset,
-                                            heart.manual_beat_timeout);
-    heart.beat();
+    console.log("timeout in " + this.heart.manual_beat_timeout);
+    this.heart.manual_timeout_source = setTimeout(reset,
+                                            this.heart.manual_beat_timeout);
+    exec("play -q data/one_beat.wav");
   }.bind(this));
 }
 
@@ -287,14 +288,38 @@ TouchSensor = function (pin) {
 }
 util.inherits(TouchSensor, EventEmitter);
 
+PiezoSensor = function(pin, min_threshold, min_period) {
+    this.sensor = new five.Sensor({
+        pin: pin,
+        freq: 10,
+        range: [0, 1023],
+        threshold: 1
+    });
+
+    this.activated = false;
+    this.min_threshold = min_threshold;
+    this.min_period = min_period;
+
+    this.sensor.on("data", function() {
+      if (this.sensor.value > this.min_threshold && !this.activated) {
+        this.activated = true;
+        this.emit("beat", this.sensor.value);
+        setTimeout(function() {
+          this.activated = false;
+        }.bind(this), this.min_period);
+      }
+    }.bind(this));
+}
+util.inherits(PiezoSensor, EventEmitter);
+
 Controller = function(heart) {
   this.heart = heart;
 
-  this.panic = Panic(heart, 2, 13);
+  this.panic = new Panic(heart, 2, 13);
 
-  //this.heart_beat_sensor = ManualBeater(heart, 2, true);
+  this.beater = new ManualBeater(heart, new PiezoSensor("A1", 5, 100));
 
-  this.hue = Hue(heart, "A0");
+  this.hue = new Hue(heart, "A0");
 }
 
 five.Board().on("ready", function() {

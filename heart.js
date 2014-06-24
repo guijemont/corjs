@@ -302,7 +302,8 @@ five.Board().on("ready", function() {
   var controller = new Controller(heart);
 
   this.repl.inject({
-    heart: heart
+    heart: heart,
+    board: this
   });
 
 

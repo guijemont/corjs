@@ -79,7 +79,7 @@ Heart.prototype.startHueSelection = function() {
       this.hue_selection_source = setInterval(updateHue, this.hue_period);
     }.bind(this));
 
-  this.child = exec("play -q data/tadaa.wav", sound_finish); // ugly?
+  this.child = exec("play -q data/tadaa.wav vol 0.1", sound_finish); // ugly?
   var sound_finish = function() {
     this.child = null;
   }.bind(this);

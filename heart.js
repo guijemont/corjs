@@ -306,25 +306,5 @@ five.Board().on("ready", function() {
   });
 
 
-  /*
-  var button = new five.Button({pin: 2, holdtime:1000});
-  button.on("down", function() {
-    heart.beat();
-  });
-
-  var interval = null;
-  button.on("hold", function () {
-    heart.beat();
-    interval = setInterval(heart.beat.bind(heart), 1000);
-  });
-
-  button.on("up", function () {
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
-    }
-  });
-  */
-
 });
 

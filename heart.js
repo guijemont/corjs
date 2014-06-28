@@ -290,25 +290,25 @@ TouchSensor = function (pin) {
 }
 util.inherits(TouchSensor, EventEmitter);
 
-PiezoSensor = function(pin, min_threshold, min_period) {
+PiezoSensor = function(pin, low_threshold, high_threshold) {
     this.sensor = new five.Sensor({
         pin: pin,
         freq: 10,
         range: [0, 1023],
-        threshold: 1
     });
 
-    this.activated = false;
-    this.min_threshold = min_threshold;
-    this.min_period = min_period;
+    this.activated = true;
+    this.low_threshold = low_threshold;
+    this.high_threshold = high_threshold;
 
     this.sensor.on("data", function() {
-      if (this.sensor.value > this.min_threshold && !this.activated) {
+      if (!this.activated && this.sensor.value > this.high_threshold) {
+        console.log("beat");
         this.activated = true;
         this.emit("beat", this.sensor.value);
-        setTimeout(function() {
-          this.activated = false;
-        }.bind(this), this.min_period);
+      } else if (this.activated && this.sensor.value < this.low_threshold) {
+        console.log("disarm");
+        this.activated = false;
       }
     }.bind(this));
 }
@@ -319,7 +319,7 @@ Controller = function(heart) {
 
   this.panic = new Panic(heart, 2, 13);
 
-  this.beater = new ManualBeater(heart, new PiezoSensor("A1", 5, 100));
+  this.beater = new ManualBeater(heart, new PiezoSensor("A1", 10, 100));
 
   this.hue = new Hue(heart, "A0");
 }

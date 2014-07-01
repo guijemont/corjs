@@ -26,8 +26,8 @@ Heart = function() {
   this.value_min=0.2;
   this.value_max=1.0;
   this.beat_time = 500; // ms
-  this.default_beat_period = 1400; // ms
-  this.panic_beat_period = 500;
+  this.default_beat_period = 1200; // ms
+  this.panic_beat_period = 400;
   this.beat_period = this.default_beat_period;
   this.manual_beat_timeout = 5000; // ms
 
@@ -207,24 +207,46 @@ Heart.prototype.stopBeat = function() {
   }
 }
 
-Heart.prototype.panic = function() {
-  this.beat_period = this.panic_beat_period;
+/* level is between 0 (calm) and 1 (total panic) */
+Heart.prototype.panic_level = function(level) {
+  if (level < 0.0 || level > 1.0) {
+    console.log("Warning: panic level out of range (ignoring): " + level);
+    return;
+  }
+  var difference = this.default_beat_period - this.panic_beat_period;
+  this.beat_period = this.default_beat_period - level * difference;
 }
 
-Heart.prototype.calmDown = function() {
-  this.beat_period = this.default_beat_period;
-}
-
-Panic = function(heart, button_pin, led_pin) {
-  this.button = new five.Button(button_pin);
+Panic = function(heart, button_pins, led_pin) {
+  if (button_pins.length === 0) {
+    console.log("not enough buttons for Panic, ignoring");
+    return null;
+  }
   this.led = new five.Led(led_pin);
-  this.button.on("down", function() {
-    heart.panic();
-    this.led.on();
-  }.bind(this));
-  this.button.on("up", function() {
-    heart.calmDown();
-    this.led.off();
+  this.buttons = []
+  this.buttons_pressed = 0;
+  this.max_buttons = button_pins.length;
+  function count_buttons_down (buttons) {
+    var total = 0;
+    buttons.forEach(function(button) {
+      total += (button.isDown | 0);
+    });
+    return total;
+  }
+  button_pins.forEach(function(pin) {
+    var button = new five.Button(pin);
+    this.buttons.push(button);
+    var on_button_change = function() {
+      this.buttons_pressed = count_buttons_down(this.buttons);
+      heart.panic_level(this.buttons_pressed/this.max_buttons);
+      if (this.buttons_pressed > 0) {
+        this.led.on();
+      } else {
+        this.led.off();
+      }
+    }.bind(this);
+    button.on("down", on_button_change);
+    button.on("up", on_button_change);
   }.bind(this));
 }
 
@@ -317,7 +339,7 @@ util.inherits(PiezoSensor, EventEmitter);
 Controller = function(heart) {
   this.heart = heart;
 
-  this.panic = new Panic(heart, 2, 13);
+  this.panic = new Panic(heart, [2,4,7], 13);
 
   this.beater = new ManualBeater(heart, new PiezoSensor("A1", 10, 100));
 

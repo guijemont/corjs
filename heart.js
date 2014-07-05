@@ -79,10 +79,12 @@ Heart.prototype.startHueSelection = function() {
       this.hue_selection_source = setInterval(updateHue, this.hue_period);
     }.bind(this));
 
+  /*
   this.child = exec("play -q data/tadaa.wav vol 0.1", sound_finish); // ugly?
   var sound_finish = function() {
     this.child = null;
   }.bind(this);
+  */
 }
 
 Heart.prototype.stopHueSelection = function () {
@@ -91,8 +93,10 @@ Heart.prototype.stopHueSelection = function () {
   clearInterval(this.hue_selection_source);
   this.hue_selection_source = null;
   this.colorFade(this.low_color, 500, function() {
-      this.child.kill('SIGKILL');
-      this.child = null;
+      if (this.child) {
+        this.child.kill('SIGKILL');
+        this.child = null;
+      }
       this.startBeat();
     }.bind(this));
 }

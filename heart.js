@@ -260,28 +260,29 @@ Hue = function(heart, pin) {
   }.bind(this));
 }
 
-// beater is something that sends a "beat" signal
-ManualBeater = function(heart, beater) {
+ManualBeater = function(heart, beaters) {
   this.heart = heart;
-  this.beater = beater;
-  this.beater.on("beat", function() {
-    if (this.heart.mode === Heart.HUESELECT)
-      return;
-    var reset = function() {
-      console.log("manual beat timeout!");
-      this.heart.setMode(Heart.AUTOBEAT);
-    }.bind(this);
+  this.beaters = beaters;
+  this.beaters.forEach(function(beater) {
+    beater.on("beat", function() {
+      if (this.heart.mode === Heart.HUESELECT)
+        return;
+      var reset = function() {
+        console.log("manual beat timeout!");
+        this.heart.setMode(Heart.AUTOBEAT);
+      }.bind(this);
 
-    if (this.heart.mode !== Heart.MANUALBEAT) {
-      this.heart.setMode(Heart.MANUALBEAT);
-    }
-    if (this.heart.manual_timeout_source)
-      clearTimeout(this.heart.manual_timeout_source);
+      if (this.heart.mode !== Heart.MANUALBEAT) {
+        this.heart.setMode(Heart.MANUALBEAT);
+      }
+      if (this.heart.manual_timeout_source)
+        clearTimeout(this.heart.manual_timeout_source);
 
-    this.heart.manual_timeout_source = setTimeout(reset,
-                                            this.heart.manual_beat_timeout);
-    exec("play -q data/one_beat.wav");
-    this.heart.beat(true);
+      this.heart.manual_timeout_source = setTimeout(reset,
+                                              this.heart.manual_beat_timeout);
+      exec("play -q data/one_beat.wav");
+      this.heart.beat(true);
+    }.bind(this));
   }.bind(this));
 }
 
@@ -341,7 +342,10 @@ Controller = function(heart) {
 
   this.panic = new Panic(heart, [2,4,7], 13);
 
-  this.beater = new ManualBeater(heart, new PiezoSensor("A1", 10, 100));
+  var piezos = ["A1", "A1"].map(function(pin) {
+    return new PiezoSensor(pin, 10, 100);
+    })
+  this.beater = new ManualBeater(heart, piezos);
 
   this.hue = new Hue(heart, "A0");
 }

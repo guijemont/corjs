@@ -27,7 +27,7 @@ Heart = function() {
   this.value_max=1.0;
   this.beat_time = 500; // ms
   this.default_beat_period = 1200; // ms
-  this.panic_beat_period = 400;
+  this.panic_beat_period = 300;
   this.beat_period = this.default_beat_period;
   this.manual_beat_timeout = 5000; // ms
 
@@ -102,6 +102,7 @@ Heart.prototype.stopHueSelection = function () {
 }
 
 Heart.prototype.beat = function(silent) {
+  //this.setHue((this.hue + 1) % 360);
   var fadeOut = function() {
     this.colorFade(this.low_color, this.beat_time/2);
   }.bind(this);
@@ -303,12 +304,15 @@ TouchSensor = function (pin) {
 
     this.sensor.scale([0, 1023]).on("data", function () {
       var difference = this.sensor.value - this.last_val;
+      //console.log(this.sensor.value);
       if (Math.abs(difference) > this.sensor.threshold) {
         if (!this.touched && difference < 0) {
           this.touched = true;
+          console.log("down! val: " + this.sensor.value + " diff: " + difference);
           this.emit("down");
         } else if (this.touched && difference > 0) {
           this.touched = false;
+          console.log("up! val: " + this.sensor.value + " diff: " + difference);
           this.emit("up");
         }
       }
